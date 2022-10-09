@@ -9,6 +9,7 @@ typedef struct Info{
 	struct Info* pai;
 	char acao;
 	int custo;
+	int heuristica;
 } Info;
 
 typedef struct nodoLEnc{
