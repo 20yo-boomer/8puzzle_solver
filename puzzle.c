@@ -71,7 +71,93 @@ ListaEnc* sucessores(Info nodo){
 	return lista; // Aonde que se destroi a lista?
 }
 
-// Implementa BFS. Dado um estado (string) retorna o caminho percorrido (lista de nodos)
+// Funções auxiliares (factorial, hash, manhattan, hamming)
+int factorial(int n){
+	switch(n){
+		case 0:
+			return 1;
+			break;
+		case 1:
+			return 1;
+			break;
+		case 2:
+			return 2;
+			break;
+		case 3:
+			return 6;
+			break;
+		case 4:
+			return 24;
+			break;
+		case 5:
+			return 120;
+			break;
+		case 6:
+			return 720;
+			break;
+		case 7:
+			return 5040;
+			break;
+		case 8:
+			return 40320;
+			break;
+	}
+}
+
+int hash(char* string){
+	int numbers[9];
+	// Converte "123_" para {1, 2, 3, 0}
+	for(int i = 0; i < 9; i++){
+		if(string[i] == '_'){
+			numbers[i] = 0;
+		} else {
+			numbers[i] = string[i] - '0'; // e.g. '4' - '0' = 4
+		}
+	}
+	int result = 0;
+	int n_de_menores = 0;
+	for(int i = 0; i < 9; i++){
+		for(int j = i; j < 9; j++) if(numbers[j] < numbers[i]) n_de_menores++;
+		result += factorial(8-i) * n_de_menores;
+		n_de_menores = 0;
+	}
+	return result;
+}
+
+// As duas funções a seguir acabaram não sendo usadas, mas o plano era aplicar
+// na busca heurística.
+int hamming(char* string){
+	char* objetivo = "12345678_";
+	int result = 0;
+	for(int i = 0; i < strlen(string); i++){
+		if(string[i] != objetivo[i]){
+			result++;
+		}
+	}
+	// Se o espaço vazio está na posição errada, não nos importamos.
+	return result - (string[8] != '_');
+}
+int manhattan(char* string){
+	char* objetivo = "12345678_";
+	int soma_das_distancias = 0;
+	for(int i = 0; i < strlen(string); i++){
+		if(string[i] == '_') continue;
+		// char to int
+		int s = string[i] - '1';
+		int o = i; // TODO: fazer "o" ser dependente da vairável objetivo, tipo objetivo[i]
+		// Posição em que string[i] deveria estar:
+		int x_s = s % 3;
+		int y_s = s / 3;
+		int x_o = o % 3;
+		int y_o = o / 3;
+		// Distância Manhattan: abs(x_s - x_o) + abs(y_s - y_o)
+		// printf("Distância do %d: x: %d, y: %d\n", s+1, abs(x_s - x_o), abs(y_s - y_o));
+		soma_das_distancias += abs(x_s - x_o) + abs(y_s - y_o);
+	}
+	return soma_das_distancias;
+}
+
+// Implementa BFS. Dado um estado (string) retorna o caminho percorrido (lista de nodos).
 FilaEnc* bfs(char* estado){
 	// Inicializa variáveis
 	Info nodo = {estado, NULL, 'N', 0}; // Raiz do grafo, não tem pai nem ação
@@ -81,6 +167,7 @@ FilaEnc* bfs(char* estado){
 	enfileiraFila(fila, nodo); // A começar pela raiz
 	ListaEnc* explorados;
 	explorados = criaLista(); // Todos nós explorados até agora
+	hashtable tabela_de_explorados = {0};
 	Info v; // O nó a ser explorado em cada iteração do loop
 	ListaEnc* filhos;
 	Info* endereco_do_pai;
@@ -88,16 +175,85 @@ FilaEnc* bfs(char* estado){
 	while(1){
 		// Caso sem solução
 		if(vaziaFila(fila)){
-			printf("Não há solução para o estado fornecido.\n");
+			printf("\nNão há solução para o estado fornecido.\n");
 			return NULL;
 		}
 		// Examina o nodo mais antigo na fila
 		v = desenfileiraFila(fila);
 		// Adiciona v nos explorados
 		insereInicioLista(explorados, v);
-		endereco_do_pai = &explorados->prim->info; // bizarrice que vai ser usada depois
+		tabela_de_explorados[hash(v.estado)] = 1;
+		// Guarda o endereço do nó na lista de explorados, para o filho poder referenciar
+		// na hora de pegar o caminho percorrido
+		endereco_do_pai = &explorados->prim->info;
 		// Para fins de teste, imprime o custo do nodo examinado (deve ser crescente)
-		printf("%d\n", v.custo);
+		printf("\rCusto do nodo analisado: %d", v.custo);
+		fflush(stdout);
+		//printf("%s %p %c %d\n", v.estado, v.pai, v.acao, v.custo);
+		// Se for o vértice objetivo, retorna o caminho
+		if(strcmp(v.estado, "12345678_") == 0){ // comparação de strings
+			printf("\nObjetivo encontrado!\n");
+			FilaEnc* caminho;
+			caminho = criaFila();
+			for(Info* aux = &v; aux != NULL; aux = aux->pai){
+				enfileiraFila(caminho, *aux);
+			}
+			// Imprime o caminho
+			// TODO: Transformar isso aqui em uma função imprimeFila
+			for(NodoLEnc* aux = caminho->ini; aux != NULL; aux = aux->prox){
+				printf("estado: %s  acao: %c  custo: %d  \n", aux->info.estado,
+										                      aux->info.acao,
+								                              aux->info.custo);
+			}
+			return caminho;
+		}
+		// Verifica os filhos de v, e, se não estiverem na lista de explorados, põe na
+		// fila dos que vão ser explorados
+		filhos = sucessores(v);
+		for(NodoLEnc* aux = filhos->prim; aux != NULL; aux = aux->prox){
+			Info filho = aux->info;
+			filho.pai = endereco_do_pai;
+			// Verifica se ele já foi explorado.
+			bool contem = tabela_de_explorados[hash(filho.estado)];
+			if(!contem){
+				enfileiraFila(fila, filho);
+			}
+		}
+	}
+}
+
+// Implementa DFS. Dado um estado (string) retorna o caminho percorrido (lista de nodos).
+FilaEnc* dfs(char* estado){
+	// Inicializa variáveis
+	Info nodo = {estado, NULL, 'N', 0}; // Raiz do grafo, não tem pai nem ação
+	// Para o DFS usamos uma pilha (last in, first out)
+	PilhaEnc* pilha;
+	pilha = criaPilha(); // Os nodos esperando para ser explorados vão ir aqui
+	empilhaPilha(pilha, nodo); // A começar pela raiz
+	ListaEnc* explorados;
+	explorados = criaLista(); // Todos nós explorados até agora
+	hashtable tabela_de_explorados = {0};
+	Info v; // O nó a ser explorado em cada iteração do loop
+	ListaEnc* filhos;
+	Info* endereco_do_pai;
+	// Loop
+	while(1){
+		// Caso sem solução
+		if(vaziaPilha(pilha)){
+			printf("Não há solução para o estado fornecido.\n");
+			return NULL;
+		}
+		// Examina o nodo mais antigo na fila
+		v = desempilhaPilha(pilha);
+		// Adiciona v nos explorados
+		insereInicioLista(explorados, v);
+		tabela_de_explorados[hash(v.estado)] = 1;
+		// Guarda o endereço do nó na lista de explorados, para o filho poder referenciar
+		// na hora de pegar o caminho percorrido
+		endereco_do_pai = &explorados->prim->info;
+		// Para fins de teste, imprime o custo do nodo examinado (deve ser crescente)
+		printf("\rCusto do nodo analisado: %d", v.custo);
+		fflush(stdout);
 		//printf("%s %p %c %d\n", v.estado, v.pai, v.acao, v.custo);
 		// Se for o vértice objetivo, retorna o caminho
 		if(strcmp(v.estado, "12345678_") == 0){ // comparação de strings
@@ -119,19 +275,15 @@ FilaEnc* bfs(char* estado){
 		}
 		// Verifica os filhos de v, e, se não estiverem na lista de explorados, põe na
 		// fila dos que vão ser explorados
-		//filhos = sucessores(v);
-		//for(NodoLEnc* aux = filhos->prim; aux != NULL; aux = aux->prox){
-		//	Info filho = aux->info;
-		//	filho.pai = endereco_do_pai;
-		//	// Verifica se ele já foi explorado.
-		//	// TODO: listaContem(lista, string)
-		//	bool contem = false;
-		//	for(NodoLEnc* aux = explorados->prim; aux != NULL; aux = aux->prox){
-		//		contem = contem | (strcmp(aux->info.estado, filho.estado) == 0);
-		//	}
-		//	if(!contem){
-		//		enfileiraFila(fila, filho);
-		//	}
-		//}
+		filhos = sucessores(v);
+		for(NodoLEnc* aux = filhos->prim; aux != NULL; aux = aux->prox){
+			Info filho = aux->info;
+			filho.pai = endereco_do_pai;
+			// Verifica se ele já foi explorado.
+			bool contem = tabela_de_explorados[hash(filho.estado)];
+			if(!contem){
+				empilhaPilha(pilha, filho);
+			}
+		}
 	}
 }
