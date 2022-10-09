@@ -9,26 +9,28 @@ void testa_realiza_movimento(char* estado, char movimento);
 void testa_sucessores(Info nodo);
 
 int main(){
-	// Inicialização do estado inicial
-	printf("Estado inicial:\n");
-	char estado[10] = {'2', '_', '3', '5', '4', '1', '6', '8', '7', '\0'};
-	Info nodo = {estado, NULL, 'N', 0};
-	imprime_estado(estado);
-
 	// Testar função 'realiza_movimento'
 	//testa_realiza_movimento(estado, 'B');
 	//testa_realiza_movimento(estado, 'D');
 	//testa_realiza_movimento(estado, 'E');
 	
-	printf("-----------------------\n\n");
+	//printf("-----------------------\n\n");
 
 	// Testar função 'sucessores'
 	//testa_sucessores(nodo);
 	
 	//printf("-----------------------\n");
 	
-	// Testar 'bfs'
-	bfs("243578_61");
+	// Testar BFS
+	//printf("Caminho curto: \n");
+	//imprime_estado("1234567_8");
+	//bfs("1234567_8");
+
+	//printf("\nCaminho de tamanho 25:\n");
+	//bfs("874_26351");
+
+	printf("\nTabuleiro impossível: 12345687_\n");
+	dfs("12345687_");
 
 	return 0;
 }
